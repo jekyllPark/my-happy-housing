@@ -1,0 +1,38 @@
+{
+  "housing_types": [
+    {"code": "happy", "name": "행복주택", "color": "#4CAF50"},
+    {"code": "national", "name": "국민임대", "color": "#2196F3"},
+    {"code": "permanent", "name": "영구임대", "color": "#9C27B0"},
+    {"code": "purchase", "name": "매입임대", "color": "#FF9800"},
+    {"code": "jeonse", "name": "전세임대", "color": "#00BCD4"},
+    {"code": "public_support", "name": "공공지원민간임대", "color": "#795548"}
+  ],
+  "target_groups": [
+    {"code": "youth", "name": "청년", "min_age": 19, "max_age": 39},
+    {"code": "newlywed", "name": "신혼부부", "description": "혼인기간 7년 이내"},
+    {"code": "general", "name": "일반", "description": "무주택세대구성원"},
+    {"code": "student", "name": "대학생", "description": "대학 재학/입학예정"},
+    {"code": "senior", "name": "고령자", "min_age": 65},
+    {"code": "welfare", "name": "주거급여수급자"}
+  ],
+  "recruitment_status": [
+    {"code": "open", "name": "모집중"},
+    {"code": "upcoming", "name": "모집예정"},
+    {"code": "closed", "name": "마감"},
+    {"code": "archived", "name": "과거이력"}
+  ],
+  "sort_options": [
+    {"code": "deposit_asc", "name": "보증금 낮은순", "field": "deposit", "order": "asc"},
+    {"code": "deposit_desc", "name": "보증금 높은순", "field": "deposit", "order": "desc"},
+    {"code": "deposit_min_asc", "name": "최소전환 보증금 낮은순", "field": "deposit_min", "order": "asc"},
+    {"code": "deposit_min_desc", "name": "최소전환 보증금 높은순", "field": "deposit_min", "order": "desc"},
+    {"code": "deposit_max_asc", "name": "최대전환 보증금 낮은순", "field": "deposit_max", "order": "asc"},
+    {"code": "deposit_max_desc", "name": "최대전환 보증금 높은순", "field": "deposit_max", "order": "desc"},
+    {"code": "rent_asc", "name": "월임대료 낮은순", "field": "monthly_rent", "order": "asc"},
+    {"code": "rent_desc", "name": "월임대료 높은순", "field": "monthly_rent", "order": "desc"},
+    {"code": "area_desc", "name": "전용면적 넓은순", "field": "exclusive_area", "order": "desc"},
+    {"code": "area_asc", "name": "전용면적 좁은순", "field": "exclusive_area", "order": "asc"},
+    {"code": "deadline_asc", "name": "마감일 임박순", "field": "apply_end", "order": "asc"},
+    {"code": "newest", "name": "최신 공고순", "field": "created_at", "order": "desc"}
+  ]
+}

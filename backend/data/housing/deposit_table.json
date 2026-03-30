@@ -1,0 +1,26 @@
+{
+  "description": "보증금-월세 전환 기준 테이블",
+  "conversion_rate": {
+    "description": "연 전환율 (%): 보증금과 월세 간 전환 시 적용되는 연이율",
+    "default_rate": 2.5,
+    "rates_by_type": {
+      "happy": 2.5,
+      "national": 2.0,
+      "permanent": 1.5,
+      "purchase": 2.5,
+      "jeonse": 0,
+      "public_support": 3.0
+    }
+  },
+  "conversion_formula": {
+    "deposit_to_rent": "추가월세 = (줄인_보증금 * 연전환율) / 12",
+    "rent_to_deposit": "추가보증금 = (줄인_월세 * 12) / 연전환율"
+  },
+  "deposit_limits": {
+    "happy": {"min_ratio": 0.4, "max_ratio": 2.0, "description": "기본보증금의 40%~200% 범위"},
+    "national": {"min_ratio": 0.5, "max_ratio": 1.8, "description": "기본보증금의 50%~180% 범위"},
+    "permanent": {"min_ratio": 0.6, "max_ratio": 1.5, "description": "기본보증금의 60%~150% 범위"},
+    "purchase": {"min_ratio": 0.4, "max_ratio": 2.0, "description": "기본보증금의 40%~200% 범위"},
+    "public_support": {"min_ratio": 0.5, "max_ratio": 2.5, "description": "기본보증금의 50%~250% 범위"}
+  }
+}
