@@ -25,6 +25,9 @@ out/
 .env.local
 .env.*.local
 
+# Logs
+backend/logs/*.log
+
 # IDE
 .vscode/
 .idea/
