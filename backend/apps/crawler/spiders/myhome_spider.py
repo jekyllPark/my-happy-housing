@@ -79,6 +79,8 @@ class MyHomeSpider:
         }
         self.session = requests.Session()
         self.session.headers.update(self.headers)
+        self.date_begin = ''
+        self.date_end = ''
         self.geo_service = None
 
     def _get_geo_service(self):
@@ -102,8 +104,8 @@ class MyHomeSpider:
             'srchHouseTy': '',                # 주택유형
             'srchSuplyPrvuseAr': '',          # 전용면적
             'srchBassMtRntchrg': '',          # 월임대료
-            'srchRcritPblancDeYearMtBegin': '',
-            'srchRcritPblancDeYearMtEnd': '',
+            'srchRcritPblancDeYearMtBegin': self.date_begin or '',
+            'srchRcritPblancDeYearMtEnd': self.date_end or '',
             'searchTyId': '',
             'lfstsTyAt': '',
         }
@@ -584,6 +586,12 @@ class MyHomeSpider:
 
                         if not pblanc_nm:
                             result['failed_items'] += 1
+                            continue
+
+                        # Skip if already in DB (by pblancId code)
+                        code = f'myhome_{pblanc_id}'
+                        if HousingComplex.objects.filter(code=code).exists():
+                            result['updated_items'] += 1
                             continue
 
                         # Map housing type
