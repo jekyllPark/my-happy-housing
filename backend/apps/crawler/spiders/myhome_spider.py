@@ -316,6 +316,17 @@ class MyHomeSpider:
 
         candidates = []
         clean = re.sub(r'\[입주자격[^\]]*\]', '', name).strip()
+        # Remove bracket prefixes: [xxx]
+        no_bracket = re.sub(r'\[[^\]]*\]', '', clean).strip()
+
+        # 0) First Korean word of name (most likely the location): "부천원종", "청주우암", "홍성군"
+        first_word = re.match(r'([\uAC00-\uD7A3]{2,})', no_bracket)
+        if first_word:
+            fw = first_word.group(1)
+            # Add as-is and with brtc
+            if brtc_nm:
+                candidates.append(f'{brtc_nm} {fw}')
+            candidates.append(fw)
 
         # 1) "OO군/시/구" from name: 홍성군, 부산금정구, 천안시
         for m in re.finditer(r'([\uAC00-\uD7A3]{2,}[시군구])', clean):
