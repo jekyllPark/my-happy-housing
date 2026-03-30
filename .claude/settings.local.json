@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker compose:*)",
+      "Bash(cd:*)",
+      "Bash(npm view:*)",
+      "Bash(curl:*)",
+      "Bash(sleep:*)",
+      "Bash(pip3 list:*)",
+      "Bash(ls:*)",
+      "Bash(python3:*)",
+      "Bash(git init:*)",
+      "Bash(which npx:*)",
+      "Bash(node:*)",
+      "Read(//private/tmp/**)",
+      "Bash(npm install:*)",
+      "Bash(git:*)",
+      "Bash(git status:*)",
+      "Bash(git add:*)",
+      "Bash(git rm:*)"
+    ]
+  }
+}
