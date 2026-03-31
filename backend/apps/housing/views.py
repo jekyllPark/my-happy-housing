@@ -203,6 +203,7 @@ class ComplexDetailView(views.APIView):
                 lh_data = scrape_lh_detail(r.announcement_url)
                 scraped = lh_data.get('units', [])
                 scraped_dates = lh_data.get('dates', {})
+                scraped_eligibility = lh_data.get('eligibility', {})
                 supply_units_data = [
                     {
                         'id': None,
@@ -256,6 +257,7 @@ class ComplexDetailView(views.APIView):
                     'document_end': schedule.get('document_end'),
                     'winner_announcement': schedule.get('winner_announcement'),
                 },
+                'eligibility_info': scraped_eligibility if not db_units.exists() else {},
             })
 
         data['recruitments'] = recruitment_list
@@ -418,6 +420,191 @@ class CommuteSearchView(views.APIView):
                 'page': page_num,
                 'pageSize': page_size,
                 'totalPages': total_pages,
+            }
+        })
+
+
+class EligibilitySearchView(views.APIView):
+    """Search housing by target group and income level"""
+
+    # 공급유형별 대상그룹별 소득 기준 (도시근로자 월평균소득 대비 %)
+    INCOME_LIMITS = {
+        'happy': {  # 행복주택
+            'youth': 100, 'newlywed': 120, 'student': 100,
+            'senior': 70, 'general': 100, 'welfare': 48,
+        },
+        'national': {  # 국민임대
+            'youth': 70, 'newlywed': 70, 'general': 70,
+            'senior': 70, 'welfare': 48,
+        },
+        'permanent': {  # 영구임대
+            'general': 50, 'senior': 50, 'welfare': 48,
+        },
+        'purchase': {  # 매입임대
+            'youth': 100, 'newlywed': 100, 'general': 70,
+            'senior': 70, 'welfare': 48,
+        },
+        'jeonse': {  # 전세임대
+            'youth': 100, 'newlywed': 100, 'general': 50,
+            'senior': 50, 'welfare': 48,
+        },
+        'public_support': {  # 공공지원민간임대
+            'youth': 120, 'newlywed': 130, 'general': 120,
+        },
+    }
+
+    # 2026년 기준 도시근로자 월평균소득 (만원, 가구원수별)
+    BASE_INCOME = {
+        1: 345, 2: 480, 3: 580, 4: 650,
+    }
+
+    def get(self, request, *args, **kwargs):
+        target_group = request.query_params.get('group', '')  # youth, newlywed, etc.
+        income = request.query_params.get('income')  # 월소득 만원
+        family_size = request.query_params.get('familySize', '1')
+
+        if not target_group:
+            return Response({
+                'success': False,
+                'error': 'group parameter required (youth/newlywed/general/student/senior/welfare)'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            income = int(income) if income else 0
+            family_size = min(int(family_size), 4)
+        except (ValueError, TypeError):
+            income = 0
+            family_size = 1
+
+        # Calculate income percentage
+        base = self.BASE_INCOME.get(family_size, 345)
+        income_pct = (income / base * 100) if base > 0 and income > 0 else 0
+
+        # Find eligible housing types
+        eligible_types = []
+        for housing_type, groups in self.INCOME_LIMITS.items():
+            limit = groups.get(target_group)
+            if limit is None:
+                continue
+            if income == 0 or income_pct <= limit:
+                eligible_types.append(housing_type)
+
+        # Status filter
+        STATUS_MAP = {
+            'recruiting': 'open', 'scheduled': 'upcoming',
+            'completed': 'closed', 'canceled': 'archived',
+        }
+        status_param = request.query_params.get('status', '')
+        status_filter = [STATUS_MAP.get(s, s) for s in status_param.split(',') if s] if status_param else []
+
+        try:
+            page_num = int(request.query_params.get('page', 1))
+        except (ValueError, TypeError):
+            page_num = 1
+        try:
+            page_size = int(request.query_params.get('pageSize', 20))
+        except (ValueError, TypeError):
+            page_size = 20
+        page_size = min(page_size, 100)
+
+        queryset = HousingComplex.objects.filter(
+            is_active=True,
+            housing_type__in=eligible_types,
+        )
+
+        # Area group filter
+        area_group = request.query_params.get('area', '')
+        if area_group:
+            AREA_FILTERS = {
+                'seoul': Q(address__icontains='서울') | Q(region__icontains='서울') | Q(name__icontains='서울'),
+                'gyeonggi': (
+                    Q(address__icontains='경기') | Q(region__icontains='경기') |
+                    Q(address__icontains='수원') | Q(address__icontains='용인') |
+                    Q(address__icontains='성남') | Q(address__icontains='고양') |
+                    Q(address__icontains='안양') | Q(address__icontains='부천') |
+                    Q(address__icontains='안산') | Q(address__icontains='화성') |
+                    Q(address__icontains='평택') | Q(address__icontains='의정부') |
+                    Q(address__icontains='시흥') | Q(address__icontains='파주') |
+                    Q(address__icontains='광명') | Q(address__icontains='김포') |
+                    Q(address__icontains='군포') | Q(address__icontains='오산') |
+                    Q(address__icontains='이천') | Q(address__icontains='양주') |
+                    Q(address__icontains='안성') | Q(address__icontains='포천') |
+                    Q(address__icontains='하남') | Q(address__icontains='의왕') |
+                    Q(address__icontains='여주') | Q(address__icontains='동두천') |
+                    Q(name__icontains='경기')
+                ),
+                'incheon': Q(address__icontains='인천') | Q(region__icontains='인천') | Q(name__icontains='인천'),
+                'local': ~(
+                    Q(address__icontains='서울') | Q(region__icontains='서울') | Q(name__icontains='서울') |
+                    Q(address__icontains='경기') | Q(region__icontains='경기') | Q(name__icontains='경기') |
+                    Q(address__icontains='인천') | Q(region__icontains='인천') | Q(name__icontains='인천') |
+                    Q(address__icontains='수원') | Q(address__icontains='용인') |
+                    Q(address__icontains='성남') | Q(address__icontains='고양') |
+                    Q(address__icontains='부천') | Q(address__icontains='안산') |
+                    Q(address__icontains='화성') | Q(address__icontains='평택') |
+                    Q(address__icontains='안양') | Q(address__icontains='의정부') |
+                    Q(address__icontains='광명') | Q(address__icontains='김포') |
+                    Q(address__icontains='군포') | Q(address__icontains='포천')
+                ),
+            }
+            area_q = AREA_FILTERS.get(area_group)
+            if area_q:
+                queryset = queryset.filter(area_q)
+
+        # Filter by target group keywords in name
+        # Exclude announcements clearly meant for other groups
+        TARGET_EXCLUDE_KEYWORDS = {
+            'youth': ['신혼', '신생아', '고령자', '주거급여', '수급자'],
+            'newlywed': ['청년매입', '청년 매입', '청년임대', '청년 임대', '청년 전세', '청년전세', '고령자', '주거급여'],
+            'general': ['청년', '신혼', '신생아', '대학생', '고령자'],
+            'student': ['신혼', '신생아', '고령자', '주거급여'],
+            'senior': ['청년', '신혼', '신생아', '대학생'],
+            'welfare': [],
+        }
+
+        exclude_keywords = TARGET_EXCLUDE_KEYWORDS.get(target_group, [])
+        for kw in exclude_keywords:
+            queryset = queryset.exclude(name__icontains=kw)
+
+        # Also include announcements that explicitly mention the target group
+        TARGET_INCLUDE_KEYWORDS = {
+            'youth': ['청년'],
+            'newlywed': ['신혼', '신생아'],
+            'student': ['대학생'],
+            'senior': ['고령자'],
+            'welfare': ['수급자', '주거급여'],
+        }
+
+        if status_filter:
+            queryset = queryset.filter(recruitments__status__in=status_filter)
+
+        from django.db.models import Case, When, Value, IntegerField
+        queryset = queryset.distinct().annotate(
+            status_order=Case(
+                When(recruitments__status='open', then=Value(0)),
+                When(recruitments__status='upcoming', then=Value(1)),
+                default=Value(2),
+                output_field=IntegerField(),
+            )
+        ).order_by('status_order', '-created_at')
+
+        total = queryset.count()
+        total_pages = (total + page_size - 1) // page_size if total > 0 else 0
+        start = (page_num - 1) * page_size
+        page_items = queryset[start:start + page_size]
+
+        serializer = HousingComplexListSerializer(page_items, many=True)
+
+        return Response({
+            'success': True,
+            'data': {
+                'data': serializer.data,
+                'total': total,
+                'page': page_num,
+                'pageSize': page_size,
+                'totalPages': total_pages,
+                'eligibleTypes': eligible_types,
+                'incomePercent': round(income_pct, 1),
             }
         })
 

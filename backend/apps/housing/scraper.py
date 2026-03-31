@@ -311,7 +311,10 @@ def scrape_lh_detail(announcement_url: str) -> Dict:
                         u['deposit_note'] = ''
                         break
 
-    return {'units': units, 'dates': dates}
+    # Extract eligibility/income criteria from PDF
+    eligibility = _extract_eligibility_from_pdf(soup, announcement_url)
+
+    return {'units': units, 'dates': dates, 'eligibility': eligibility}
 
 
 def _extract_deposit_from_pdf(soup, announcement_url: str) -> Dict[str, Dict]:
@@ -416,6 +419,163 @@ def _extract_deposit_from_pdf(soup, announcement_url: str) -> Dict[str, Dict]:
         logger.warning(f'PDF parsing failed: {e}')
 
     return deposit_map
+
+
+def _extract_eligibility_from_pdf(soup, announcement_url: str) -> Dict:
+    """
+    Extract income/asset eligibility criteria from PDF attachment.
+    Returns dict with income_criteria (text), income_table (list), asset_criteria (text)
+    """
+    result = {'income_text': '', 'income_table': [], 'asset_text': ''}
+
+    try:
+        pdf_ids = re.findall(r"fileDownLoad\D+(\d+)", str(soup))
+        if not pdf_ids:
+            return result
+
+        base_url = announcement_url.split('/lhapply/')[0] + '/lhapply'
+        pdf_content = None
+        for fid in pdf_ids[:6]:
+            try:
+                r = requests.get(
+                    f'{base_url}/lhFile.do?fileid={fid}',
+                    timeout=15,
+                    headers={'User-Agent': 'Mozilla/5.0'},
+                )
+                if r.content[:5] == b'%PDF-':
+                    pdf_content = r.content
+                    break
+            except Exception:
+                continue
+
+        if not pdf_content:
+            return result
+
+        import io
+        import pdfplumber
+        pdf = pdfplumber.open(io.BytesIO(pdf_content))
+
+        for pg in pdf.pages[:15]:
+            text = pg.extract_text() or ''
+            if '소득' not in text:
+                continue
+
+            tables = pg.extract_tables()
+            for table in tables:
+                if not table or len(table) < 2:
+                    continue
+
+                all_text = ' '.join(str(c) for row in table for c in row if c)
+
+                # Type 1: 순위 + 소득기준 (매입임대리츠 형태)
+                if '순위' in all_text and '소득기준' in all_text:
+                    for row in table[1:]:
+                        if not row:
+                            continue
+                        cell_text = ' '.join(str(c) for c in row if c)
+                        if '퍼센트' in cell_text or '%' in cell_text:
+                            if not result['income_text']:
+                                result['income_text'] = cell_text.replace('\n', ' ').strip()[:200]
+                            break
+
+                # Type 2: 가구원수 + 월평균소득금액 (독립 테이블)
+                if '가구원수' in all_text and '월평균' in all_text and not result['income_table']:
+                    # Find percent headers from header rows
+                    pct_cols = []
+                    for hrow in table[:2]:
+                        for hcell in (hrow or []):
+                            pct_m = re.search(r'(\d+)%', str(hcell) if hcell else '')
+                            if pct_m:
+                                pct_cols.append(pct_m.group(1))
+
+                    for row in table[2:]:
+                        if not row or not row[0]:
+                            continue
+                        family = str(row[0]).strip()
+                        if not family or family == 'None':
+                            continue
+                        if not re.match(r'\d+인', family):
+                            continue
+                        # Each subsequent cell is a different percent tier
+                        for ci in range(1, len(row)):
+                            val = str(row[ci]).strip() if row[ci] else ''
+                            if not val or val == 'None':
+                                continue
+                            pct = f'{pct_cols[ci-1]}%' if ci - 1 < len(pct_cols) else ''
+                            result['income_table'].append({
+                                'family_size': family,
+                                'amount': val if '원' in val else f'{val}원 이하',
+                                'percent': pct,
+                            })
+
+                # Type 3: 소득 + 자산 통합 테이블 (국민임대 형태)
+                # "구분 | 소득 및 자산보유 기준" with embedded income table in cell text
+                if '소득 및 자산' in all_text or ('소득' in all_text and '자산' in all_text and '구분' in all_text):
+                    for row in table:
+                        if not row:
+                            continue
+                        for cell in row:
+                            cell_str = str(cell) if cell else ''
+
+                            # Extract embedded income table from cell text
+                            if '가구원수' in cell_str and '월평균' in cell_str and not result['income_table']:
+                                lines = cell_str.split('\n')
+                                pct_headers = []
+                                for line in lines:
+                                    pct_match = re.findall(r'(\d+)%', line)
+                                    if pct_match and len(pct_match) >= 2:
+                                        pct_headers = pct_match
+                                        continue
+                                    # "1인 2,669,354 3,050,690 3,432,027"
+                                    amounts = re.findall(r'([\d,]{5,})', line)
+                                    fam_match = re.match(r'(\d+인)', line.strip())
+                                    if fam_match and amounts:
+                                        fam = fam_match.group(1)
+                                        for ai, amt in enumerate(amounts):
+                                            pct = f'{pct_headers[ai]}%' if ai < len(pct_headers) else ''
+                                            result['income_table'].append({
+                                                'family_size': fam,
+                                                'amount': f'{amt}원 이하',
+                                                'percent': pct,
+                                            })
+
+                                if not result['income_text'] and pct_headers:
+                                    result['income_text'] = f'도시근로자 가구당 월평균소득 기준 ({", ".join(p + "%" for p in pct_headers)})'
+
+                            # Extract asset info
+                            if '총자산' in cell_str and '백만원' in cell_str:
+                                amt_match = re.search(r'\(\s*([\d,]+)\s*\)\s*백만원', cell_str)
+                                if amt_match:
+                                    amt_val = amt_match.group(1).replace(',', '')
+                                    result['asset_text'] = f'총자산 {int(amt_val) / 100:.1f}억원 이하'
+
+                            if '자동차' in cell_str and '만원' in cell_str:
+                                car_match = re.search(r'\(\s*([\d,]+)\s*\)\s*만원', cell_str)
+                                if car_match:
+                                    car_val = car_match.group(1).replace(',', '')
+                                    if result['asset_text']:
+                                        result['asset_text'] += f', 자동차 {car_val}만원 이하'
+                                    else:
+                                        result['asset_text'] = f'자동차 {car_val}만원 이하'
+
+                # Type 1 asset: standalone asset table
+                if ('자산기준' in all_text or '총자산가액' in all_text) and not result['asset_text']:
+                    for row in table[1:]:
+                        cell_text = ' '.join(str(c) for c in row if c)
+                        if '원 이하' in cell_text and '총자산' not in cell_text[:3]:
+                            # Already formatted
+                            result['asset_text'] = cell_text.replace('\n', ' ').strip()[:200]
+                            break
+
+            if result['income_text'] or result['income_table']:
+                break
+
+        pdf.close()
+
+    except Exception as e:
+        logger.warning(f'PDF eligibility parsing failed: {e}')
+
+    return result
 
 
 def scrape_lh_supply_info(announcement_url: str) -> List[Dict]:

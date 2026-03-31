@@ -135,6 +135,7 @@ export async function getComplex(id: string): Promise<HousingComplex> {
     applicationStart: r.apply_start || '',
     applicationEnd: r.apply_end || '',
     schedule: r.schedule || null,
+    eligibilityInfo: r.eligibility_info || null,
     supplyUnits: (r.supply_units || []).map((u: any) => ({
       id: String(u.id),
       area: parseFloat(u.exclusive_area) || 0,
@@ -278,6 +279,43 @@ export async function searchByCommute(
     page: rawData.page || page,
     pageSize: rawData.pageSize || pageSize,
     totalPages: rawData.totalPages || 0,
+  };
+}
+
+export async function searchByEligibility(
+  group: string,
+  income: number,
+  familySize: number = 1,
+  page: number = 1,
+  pageSize: number = 20,
+  status: string = '',
+  area: string = ''
+): Promise<SearchResponse & { eligibleTypes?: string[]; incomePercent?: number }> {
+  const params = new URLSearchParams({
+    group,
+    income: income.toString(),
+    familySize: familySize.toString(),
+    page: page.toString(),
+    pageSize: pageSize.toString(),
+  });
+  if (status) params.set('status', status);
+  if (area) params.set('area', area);
+
+  const response = await apiClient.get<any>(
+    `/api/housing/eligibility/?${params.toString()}`
+  );
+
+  const rawData = response.data || response;
+  const items = rawData.data || [];
+
+  return {
+    data: items.map(transformComplex),
+    total: rawData.total || 0,
+    page: rawData.page || page,
+    pageSize: rawData.pageSize || pageSize,
+    totalPages: rawData.totalPages || 0,
+    eligibleTypes: rawData.eligibleTypes || [],
+    incomePercent: rawData.incomePercent || 0,
   };
 }
 

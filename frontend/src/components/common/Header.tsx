@@ -40,10 +40,10 @@ export function Header() {
               지역별 검색
             </Link>
             <Link
-              href="/about"
-              className="text-gray-600 hover:text-gray-900 font-medium transition-colors text-sm"
+              href="/eligibility"
+              className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
             >
-              소개
+              자격요건 검색
             </Link>
           </nav>
 
@@ -85,11 +85,11 @@ export function Header() {
               지역별 검색
             </Link>
             <Link
-              href="/about"
+              href="/eligibility"
               className="block text-gray-600 hover:text-gray-900 font-medium py-2"
               onClick={() => setIsOpen(false)}
             >
-              서비스 소개
+              자격요건 검색
             </Link>
           </nav>
         )}

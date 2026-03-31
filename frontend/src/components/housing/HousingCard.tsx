@@ -7,8 +7,24 @@ import {
   formatDate,
   getHousingTypeLabel,
 } from '@/lib/format';
-import { MapPin, Calendar, ExternalLink, Train } from 'lucide-react';
+import { MapPin, Calendar, ExternalLink, Train, Info } from 'lucide-react';
 import type { HousingComplex } from '@/types/housing';
+
+// 공급유형별 일반 소득 기준 (도시근로자 월평균소득 대비 %)
+const INCOME_GUIDE: Record<string, string> = {
+  happy: '청년 100% / 신혼 120% / 고령자 70%',
+  national: '소득 70% 이하',
+  permanent: '소득 50% 이하 (수급자 우선)',
+  purchase: '청년·신혼 100% / 일반 70%',
+  jeonse: '청년·신혼 100% / 일반 50%',
+  public_support: '청년 120% / 신혼 130%',
+};
+
+// 공급유형별 최대 소득 비율 (가장 느슨한 기준)
+const INCOME_MAX_PCT: Record<string, number> = {
+  happy: 120, national: 70, permanent: 50,
+  purchase: 100, jeonse: 100, public_support: 130,
+};
 
 // Haversine distance in km
 function getDistanceKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -32,6 +48,7 @@ interface HousingCardProps {
   destinationLat?: number;
   destinationLng?: number;
   destinationName?: string;
+  incomePercent?: number; // 사용자의 소득 비율 (자격요건 검색에서 전달)
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -48,7 +65,7 @@ const STATUS_DOT: Record<string, string> = {
   archived: 'bg-gray-300',
 };
 
-export function HousingCard({ complex, destinationLat, destinationLng, destinationName }: HousingCardProps) {
+export function HousingCard({ complex, destinationLat, destinationLng, destinationName, incomePercent }: HousingCardProps) {
   const status = complex.recruitmentStatus || 'closed';
   const statusDisplay = complex.recruitmentStatusDisplay || '상태미정';
   const isClosed = status === 'closed' || status === 'archived';
@@ -81,6 +98,21 @@ export function HousingCard({ complex, destinationLat, destinationLng, destinati
               <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
               <span className="truncate">{complex.addressKor}</span>
             </div>
+            {INCOME_GUIDE[complex.housingType] && (
+              <div className="flex items-center gap-1 mt-1 text-xs text-gray-400">
+                <Info className="w-3 h-3 flex-shrink-0" />
+                <span>소득 기준: {INCOME_GUIDE[complex.housingType]}</span>
+                {incomePercent != null && incomePercent > 0 && (() => {
+                  const maxPct = INCOME_MAX_PCT[complex.housingType] || 100;
+                  const isOk = incomePercent <= maxPct;
+                  return (
+                    <span className={`ml-1 px-1.5 py-0.5 rounded text-xs font-semibold ${isOk ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
+                      내 소득 {incomePercent}% → {isOk ? '충족' : '초과'}
+                    </span>
+                  );
+                })()}
+              </div>
+            )}
           </div>
 
           {/* Status Badge */}

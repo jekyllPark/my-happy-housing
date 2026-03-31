@@ -145,11 +145,99 @@ export default function ComplexDetailPage() {
               </div>
             )}
 
-            {/* Eligibility */}
+            {/* Income/Eligibility from PDF */}
+            {(() => {
+              const info = (currentRecruitment as any)?.eligibilityInfo;
+              if (!info || (!info.income_text && !info.income_table?.length && !info.asset_text)) return null;
+              return (
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6">
+                    소득·자산 기준
+                  </h2>
+
+                  {/* 소득 기준 요약 */}
+                  {info.income_text && (
+                    <div className="mb-5 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                      <h3 className="text-sm font-bold text-blue-800 mb-1">소득 기준</h3>
+                      <p className="text-sm text-blue-900 leading-relaxed">{info.income_text}</p>
+                    </div>
+                  )}
+
+                  {/* 가구원수별 소득 기준 테이블 */}
+                  {info.income_table && info.income_table.length > 0 && (() => {
+                    // Group by family_size, each has multiple percent tiers
+                    const grouped: Record<string, Array<{amount: string; percent: string}>> = {};
+                    const percents = new Set<string>();
+                    for (const row of info.income_table) {
+                      if (!grouped[row.family_size]) grouped[row.family_size] = [];
+                      grouped[row.family_size].push({ amount: row.amount, percent: row.percent });
+                      if (row.percent) percents.add(row.percent);
+                    }
+                    const pctList = Array.from(percents).sort((a, b) => parseInt(a) - parseInt(b));
+                    const families = Object.keys(grouped);
+                    const hasMultiplePct = pctList.length > 1;
+
+                    return (
+                      <div className="mb-5 overflow-x-auto">
+                        <h3 className="text-sm font-bold text-gray-700 mb-3">가구원수별 월평균소득 기준</h3>
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-gray-50 border-b border-gray-200">
+                              <th className="px-3 py-2.5 text-left font-semibold text-gray-600">가구원수</th>
+                              {hasMultiplePct ? pctList.map(p => (
+                                <th key={p} className="px-3 py-2.5 text-right font-semibold text-gray-600">{p}</th>
+                              )) : (
+                                <th className="px-3 py-2.5 text-right font-semibold text-gray-600">기준 금액</th>
+                              )}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {families.map((fam, idx) => (
+                              <tr key={idx} className="border-b border-gray-100 hover:bg-blue-50/30 transition-colors">
+                                <td className="px-3 py-2.5 font-semibold text-gray-900">{fam}</td>
+                                {hasMultiplePct ? pctList.map(p => {
+                                  const match = grouped[fam].find(r => r.percent === p);
+                                  return (
+                                    <td key={p} className="px-3 py-2.5 text-right text-gray-800 font-medium tabular-nums">
+                                      {match ? match.amount : '-'}
+                                    </td>
+                                  );
+                                }) : (
+                                  <td className="px-3 py-2.5 text-right text-gray-800 font-medium tabular-nums">
+                                    {grouped[fam][0]?.amount || '-'}
+                                    {grouped[fam][0]?.percent && (
+                                      <span className="ml-2 text-xs text-blue-600">({grouped[fam][0].percent})</span>
+                                    )}
+                                  </td>
+                                )}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })()}
+
+                  {/* 자산 기준 */}
+                  {info.asset_text && (
+                    <div className="p-4 bg-orange-50 border border-orange-200 rounded-xl">
+                      <h3 className="text-sm font-bold text-orange-800 mb-1">자산 기준</h3>
+                      <p className="text-sm text-orange-900 leading-relaxed">{info.asset_text}</p>
+                    </div>
+                  )}
+
+                  <p className="text-xs text-gray-400 mt-4">
+                    * 공고문 PDF에서 추출한 정보입니다. 정확한 기준은 공고 원문을 확인해주세요.
+                  </p>
+                </div>
+              );
+            })()}
+
+            {/* Eligibility from DB */}
             {currentRecruitment?.eligibility && currentRecruitment.eligibility.length > 0 && (
               <div className="bg-white rounded-lg shadow-md p-6">
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6">
-                  입주자 격기요건
+                  입주자격요건
                 </h2>
                 <EligibilityTabs eligibility={currentRecruitment.eligibility} />
               </div>
