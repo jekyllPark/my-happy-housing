@@ -12,6 +12,8 @@ class HousingComplex(models.Model):
         ('purchase', '매입임대'),
         ('jeonse', '전세임대'),
         ('public_support', '공공지원민간임대'),
+        ('public_sale', '공공분양'),
+        ('private_sale', '민간분양'),
     ]
 
     code = models.CharField(max_length=50, unique=True, db_index=True)

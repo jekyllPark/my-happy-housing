@@ -609,6 +609,126 @@ class EligibilitySearchView(views.APIView):
         })
 
 
+class BrowseView(views.APIView):
+    """Browse all housing by type/area/status"""
+
+    def get(self, request, *args, **kwargs):
+        housing_type = request.query_params.get('type', '')
+        area = request.query_params.get('area', '')
+
+        STATUS_MAP = {
+            'recruiting': 'open', 'scheduled': 'upcoming',
+            'completed': 'closed', 'canceled': 'archived',
+        }
+        status_param = request.query_params.get('status', '')
+        status_filter = [STATUS_MAP.get(s, s) for s in status_param.split(',') if s] if status_param else []
+
+        try:
+            page_num = int(request.query_params.get('page', 1))
+        except (ValueError, TypeError):
+            page_num = 1
+        try:
+            page_size = int(request.query_params.get('pageSize', 20))
+        except (ValueError, TypeError):
+            page_size = 20
+
+        queryset = HousingComplex.objects.filter(is_active=True)
+
+        if housing_type:
+            queryset = queryset.filter(housing_type=housing_type)
+
+        if area:
+            queryset = queryset.filter(
+                Q(address__icontains=area) |
+                Q(region__icontains=area) |
+                Q(name__icontains=area)
+            )
+
+        if status_filter:
+            queryset = queryset.filter(recruitments__status__in=status_filter)
+
+        from django.db.models import Case, When, Value, IntegerField
+        queryset = queryset.distinct().annotate(
+            status_order=Case(
+                When(recruitments__status='open', then=Value(0)),
+                When(recruitments__status='upcoming', then=Value(1)),
+                default=Value(2),
+                output_field=IntegerField(),
+            )
+        ).order_by('status_order', '-created_at')
+
+        total = queryset.count()
+        total_pages = (total + page_size - 1) // page_size if total > 0 else 0
+        start = (page_num - 1) * page_size
+        page_items = queryset[start:start + page_size]
+
+        serializer = HousingComplexListSerializer(page_items, many=True)
+
+        return Response({
+            'success': True,
+            'data': {
+                'data': serializer.data,
+                'total': total,
+                'page': page_num,
+                'pageSize': page_size,
+                'totalPages': total_pages,
+            }
+        })
+
+
+class SaleSearchView(views.APIView):
+    """Search sale housing (공공분양/민간분양)"""
+
+    def get(self, request, *args, **kwargs):
+        area = request.query_params.get('q', '').strip()
+        housing_type = request.query_params.get('housingType', '')
+
+        try:
+            page_num = int(request.query_params.get('page', 1))
+        except (ValueError, TypeError):
+            page_num = 1
+        try:
+            page_size = int(request.query_params.get('pageSize', 20))
+        except (ValueError, TypeError):
+            page_size = 20
+
+        sale_types = ['public_sale', 'private_sale']
+        if housing_type in sale_types:
+            sale_types = [housing_type]
+
+        queryset = HousingComplex.objects.filter(
+            is_active=True,
+            housing_type__in=sale_types,
+        )
+
+        if area and area != '분양':
+            queryset = queryset.filter(
+                Q(address__icontains=area) |
+                Q(region__icontains=area) |
+                Q(name__icontains=area)
+            )
+
+        queryset = queryset.distinct().order_by('-created_at')
+
+        total = queryset.count()
+        total_pages = (total + page_size - 1) // page_size if total > 0 else 0
+        start = (page_num - 1) * page_size
+        page_items = queryset[start:start + page_size]
+
+        serializer = HousingComplexListSerializer(page_items, many=True)
+
+        return Response({
+            'success': True,
+            'data': {
+                'data': serializer.data,
+                'total': total,
+                'page': page_num,
+                'pageSize': page_size,
+                'totalPages': total_pages,
+            }
+        })
+
+
 class RecruitmentDetailView(views.APIView):
     def get(self, request, recruitment_id, *args, **kwargs):
         recruitment = get_object_or_404(

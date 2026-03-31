@@ -43,7 +43,13 @@ export function Header() {
               href="/eligibility"
               className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
             >
-              자격요건 검색
+              자격요건
+            </Link>
+            <Link
+              href="/browse"
+              className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
+            >
+              유형별 공고
             </Link>
           </nav>
 
@@ -89,7 +95,14 @@ export function Header() {
               className="block text-gray-600 hover:text-gray-900 font-medium py-2"
               onClick={() => setIsOpen(false)}
             >
-              자격요건 검색
+              자격요건
+            </Link>
+            <Link
+              href="/browse"
+              className="block text-gray-600 hover:text-gray-900 font-medium py-2"
+              onClick={() => setIsOpen(false)}
+            >
+              유형별 공고
             </Link>
           </nav>
         )}

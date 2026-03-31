@@ -14,6 +14,8 @@ const colorMap: Record<string, { bg: string; text: string; border?: string }> = 
   purchase: { bg: 'bg-housing-purchase/10', text: 'text-housing-purchase', border: 'border-housing-purchase' },
   jeonse: { bg: 'bg-housing-jeonse/10', text: 'text-housing-jeonse', border: 'border-housing-jeonse' },
   public_support: { bg: 'bg-housing-public-support/10', text: 'text-housing-public-support', border: 'border-housing-public-support' },
+  public_sale: { bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-300' },
+  private_sale: { bg: 'bg-indigo-100', text: 'text-indigo-800', border: 'border-indigo-300' },
   // Status
   recruiting: { bg: 'bg-green-100', text: 'text-green-800' },
   scheduled: { bg: 'bg-blue-100', text: 'text-blue-800' },

@@ -18,6 +18,8 @@ const INCOME_GUIDE: Record<string, string> = {
   purchase: '청년·신혼 100% / 일반 70%',
   jeonse: '청년·신혼 100% / 일반 50%',
   public_support: '청년 120% / 신혼 130%',
+  public_sale: '공공분양 (청약통장 필요)',
+  private_sale: '민간분양 (청약통장 필요)',
 };
 
 // 공급유형별 최대 소득 비율 (가장 느슨한 기준)
