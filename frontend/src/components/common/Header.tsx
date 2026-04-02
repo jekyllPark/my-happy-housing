@@ -51,6 +51,24 @@ export function Header() {
             >
               유형별 공고
             </Link>
+            <Link
+              href="/sh"
+              className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
+            >
+              SH공사
+            </Link>
+            <Link
+              href="/rental"
+              className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
+            >
+              전/월세
+            </Link>
+            <Link
+              href="/loans"
+              className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
+            >
+              대출 정보
+            </Link>
           </nav>
 
           {/* Mobile Menu Button */}
@@ -103,6 +121,27 @@ export function Header() {
               onClick={() => setIsOpen(false)}
             >
               유형별 공고
+            </Link>
+            <Link
+              href="/sh"
+              className="block text-gray-600 hover:text-gray-900 font-medium py-2"
+              onClick={() => setIsOpen(false)}
+            >
+              SH공사
+            </Link>
+            <Link
+              href="/rental"
+              className="block text-gray-600 hover:text-gray-900 font-medium py-2"
+              onClick={() => setIsOpen(false)}
+            >
+              전/월세
+            </Link>
+            <Link
+              href="/loans"
+              className="block text-gray-600 hover:text-gray-900 font-medium py-2"
+              onClick={() => setIsOpen(false)}
+            >
+              대출 정보
             </Link>
           </nav>
         )}

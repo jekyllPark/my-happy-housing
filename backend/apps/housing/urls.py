@@ -13,6 +13,9 @@ from .views import (
     StaticDataView,
     HousingComplexViewSet,
     RecruitmentViewSet,
+    RentalBrowseView,
+    RentalRegionView,
+    RentalCommuteView,
 )
 
 router = DefaultRouter()
@@ -30,4 +33,7 @@ urlpatterns = [
     path('complex/<int:housing_id>/', ComplexDetailView.as_view(), name='complex-detail'),
     path('recruitment/<int:recruitment_id>/', RecruitmentDetailView.as_view(), name='recruitment-detail'),
     path('static-data/', StaticDataView.as_view(), name='static-data'),
+    path('rental/browse/', RentalBrowseView.as_view(), name='rental-browse'),
+    path('rental/region/', RentalRegionView.as_view(), name='rental-region'),
+    path('rental/commute/', RentalCommuteView.as_view(), name='rental-commute'),
 ]

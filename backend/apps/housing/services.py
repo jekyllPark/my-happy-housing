@@ -48,11 +48,23 @@ class StaticDataService:
             return {}
 
     @staticmethod
+    @lru_cache(maxsize=1)
+    def get_loans():
+        try:
+            file_path = Path(settings.HOUSING_DATA_DIR) / 'loans.json'
+            with open(file_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f'Failed to load loans: {e}')
+            return {}
+
+    @staticmethod
     def get_all():
         return {
             'categories': StaticDataService.get_categories(),
             'deposit_table': StaticDataService.get_deposit_table(),
             'eligibility': StaticDataService.get_eligibility(),
+            'loans': StaticDataService.get_loans(),
         }
 
 

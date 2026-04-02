@@ -5,11 +5,12 @@ from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q, Prefetch
 from django.shortcuts import get_object_or_404
 
-from .models import HousingComplex, Recruitment, SupplyUnit
+from .models import HousingComplex, Recruitment, SupplyUnit, RentalListing
 from .serializers import (
     HousingComplexListSerializer,
     HousingComplexDetailSerializer,
     RecruitmentDetailSerializer,
+    RentalListingSerializer,
     StaticDataSerializer,
 )
 from .filters import HousingComplexFilter, RecruitmentFilter, SupplyUnitFilter
@@ -304,6 +305,14 @@ class RegionSearchView(views.APIView):
             Q(name__icontains=q)
         )
 
+        # Operator filter
+        operator = request.query_params.get('operator', '')
+        if operator:
+            queryset = queryset.filter(
+                Q(operator__icontains=operator) |
+                Q(operator__icontains='서울주택도시공사')
+            ) if operator.upper() == 'SH' else queryset.filter(operator__icontains=operator)
+
         if status_filter:
             queryset = queryset.filter(recruitments__status__in=status_filter)
 
@@ -399,6 +408,14 @@ class CommuteSearchView(views.APIView):
         ).annotate(
             distance=Distance('location', dest_point)
         )
+
+        # Operator filter
+        operator = request.query_params.get('operator', '')
+        if operator:
+            queryset = queryset.filter(
+                Q(operator__icontains=operator) |
+                Q(operator__icontains='서울주택도시공사')
+            ) if operator.upper() == 'SH' else queryset.filter(operator__icontains=operator)
 
         if status_filter:
             queryset = queryset.filter(recruitments__status__in=status_filter)
@@ -644,6 +661,32 @@ class BrowseView(views.APIView):
                 Q(name__icontains=area)
             )
 
+        # Operator filter (e.g., SH for 서울주택도시공사)
+        operator = request.query_params.get('operator', '')
+        if operator:
+            queryset = queryset.filter(
+                Q(operator__icontains=operator) |
+                Q(operator__icontains='서울주택도시공사')
+            ) if operator.upper() == 'SH' else queryset.filter(operator__icontains=operator)
+
+        # Deposit/Rent filter (만원 units)
+        deposit_max = request.query_params.get('depositMax', '')
+        rent_max = request.query_params.get('rentMax', '')
+        if deposit_max:
+            try:
+                queryset = queryset.filter(
+                    recruitments__supply_units__deposit_base__lte=int(deposit_max) * 10000
+                )
+            except (ValueError, TypeError):
+                pass
+        if rent_max:
+            try:
+                queryset = queryset.filter(
+                    recruitments__supply_units__monthly_rent__lte=int(rent_max) * 10000
+                )
+            except (ValueError, TypeError):
+                pass
+
         if status_filter:
             queryset = queryset.filter(recruitments__status__in=status_filter)
 
@@ -805,6 +848,212 @@ class HousingComplexViewSet(viewsets.ReadOnlyModelViewSet):
             return self.get_paginated_response(serializer.data)
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
+
+
+class RentalBrowseView(views.APIView):
+    """Browse rental listings (전/월세) with filters"""
+
+    def get(self, request, *args, **kwargs):
+        source = request.query_params.get('source', '')
+        room_type = request.query_params.get('roomType', '')
+        trade_type = request.query_params.get('tradeType', '')
+        area = request.query_params.get('area', '')
+        deposit_max = request.query_params.get('depositMax', '')
+        rent_max = request.query_params.get('rentMax', '')
+
+        try:
+            page_num = int(request.query_params.get('page', 1))
+        except (ValueError, TypeError):
+            page_num = 1
+        try:
+            page_size = int(request.query_params.get('pageSize', 20))
+        except (ValueError, TypeError):
+            page_size = 20
+
+        queryset = RentalListing.objects.filter(is_active=True)
+
+        if source:
+            queryset = queryset.filter(source=source)
+        if room_type:
+            queryset = queryset.filter(room_type=room_type)
+        if trade_type:
+            queryset = queryset.filter(trade_type=trade_type)
+        if area:
+            queryset = queryset.filter(
+                Q(address__icontains=area) |
+                Q(district__icontains=area) |
+                Q(region__icontains=area)
+            )
+        if deposit_max:
+            try:
+                queryset = queryset.filter(deposit__lte=int(deposit_max) * 10000)
+            except (ValueError, TypeError):
+                pass
+        if rent_max:
+            try:
+                queryset = queryset.filter(monthly_rent__lte=int(rent_max) * 10000)
+            except (ValueError, TypeError):
+                pass
+
+        queryset = queryset.order_by('-created_at')
+        total = queryset.count()
+        total_pages = (total + page_size - 1) // page_size if total > 0 else 0
+        start = (page_num - 1) * page_size
+        page_items = queryset[start:start + page_size]
+
+        serializer = RentalListingSerializer(page_items, many=True)
+
+        return Response({
+            'success': True,
+            'data': {
+                'data': serializer.data,
+                'total': total,
+                'page': page_num,
+                'pageSize': page_size,
+                'totalPages': total_pages,
+            }
+        })
+
+
+class RentalRegionView(views.APIView):
+    """Search rental listings by region keyword"""
+
+    def get(self, request, *args, **kwargs):
+        q = request.query_params.get('q', '').strip()
+        if not q:
+            return Response({
+                'success': True,
+                'data': {'data': [], 'total': 0, 'page': 1, 'pageSize': 20, 'totalPages': 0}
+            })
+
+        source = request.query_params.get('source', '')
+        room_type = request.query_params.get('roomType', '')
+        trade_type = request.query_params.get('tradeType', '')
+
+        try:
+            page_num = int(request.query_params.get('page', 1))
+        except (ValueError, TypeError):
+            page_num = 1
+        try:
+            page_size = int(request.query_params.get('pageSize', 20))
+        except (ValueError, TypeError):
+            page_size = 20
+
+        queryset = RentalListing.objects.filter(
+            is_active=True
+        ).filter(
+            Q(address__icontains=q) |
+            Q(district__icontains=q) |
+            Q(region__icontains=q) |
+            Q(title__icontains=q)
+        )
+
+        if source:
+            queryset = queryset.filter(source=source)
+        if room_type:
+            queryset = queryset.filter(room_type=room_type)
+        if trade_type:
+            queryset = queryset.filter(trade_type=trade_type)
+
+        queryset = queryset.order_by('-created_at')
+        total = queryset.count()
+        total_pages = (total + page_size - 1) // page_size if total > 0 else 0
+        start = (page_num - 1) * page_size
+        page_items = queryset[start:start + page_size]
+
+        serializer = RentalListingSerializer(page_items, many=True)
+
+        return Response({
+            'success': True,
+            'data': {
+                'data': serializer.data,
+                'total': total,
+                'page': page_num,
+                'pageSize': page_size,
+                'totalPages': total_pages,
+            }
+        })
+
+
+class RentalCommuteView(views.APIView):
+    """Search rental listings within commute distance"""
+
+    def get(self, request, *args, **kwargs):
+        dest_lat = request.query_params.get('lat')
+        dest_lng = request.query_params.get('lng')
+        max_minutes = request.query_params.get('minutes', '60')
+
+        if not dest_lat or not dest_lng:
+            return Response({
+                'success': False,
+                'error': 'lat, lng parameters required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            dest_lat = float(dest_lat)
+            dest_lng = float(dest_lng)
+            max_minutes = int(max_minutes)
+        except (ValueError, TypeError):
+            return Response({
+                'success': False,
+                'error': 'Invalid parameters'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        max_km = max_minutes / 2.5
+        max_meters = int(max_km * 1000)
+
+        source = request.query_params.get('source', '')
+        room_type = request.query_params.get('roomType', '')
+        trade_type = request.query_params.get('tradeType', '')
+
+        try:
+            page_num = int(request.query_params.get('page', 1))
+        except (ValueError, TypeError):
+            page_num = 1
+        try:
+            page_size = int(request.query_params.get('pageSize', 20))
+        except (ValueError, TypeError):
+            page_size = 20
+
+        from django.contrib.gis.geos import Point
+        from django.contrib.gis.measure import D
+        from django.contrib.gis.db.models.functions import Distance
+
+        dest_point = Point(dest_lng, dest_lat, srid=4326)
+
+        queryset = RentalListing.objects.filter(
+            is_active=True,
+            location__isnull=False,
+            location__distance_lte=(dest_point, D(m=max_meters)),
+        ).annotate(
+            distance=Distance('location', dest_point)
+        )
+
+        if source:
+            queryset = queryset.filter(source=source)
+        if room_type:
+            queryset = queryset.filter(room_type=room_type)
+        if trade_type:
+            queryset = queryset.filter(trade_type=trade_type)
+
+        queryset = queryset.order_by('distance')
+        total = queryset.count()
+        total_pages = (total + page_size - 1) // page_size if total > 0 else 0
+        start = (page_num - 1) * page_size
+        page_items = queryset[start:start + page_size]
+
+        serializer = RentalListingSerializer(page_items, many=True)
+
+        return Response({
+            'success': True,
+            'data': {
+                'data': serializer.data,
+                'total': total,
+                'page': page_num,
+                'pageSize': page_size,
+                'totalPages': total_pages,
+            }
+        })
 
 
 class RecruitmentViewSet(viewsets.ReadOnlyModelViewSet):

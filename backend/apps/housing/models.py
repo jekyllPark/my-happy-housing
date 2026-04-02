@@ -238,3 +238,65 @@ class Eligibility(models.Model):
 
     def __str__(self):
         return f"{self.supply_unit} - {self.get_target_group_display()}"
+
+
+class RentalListing(models.Model):
+    """민간 전/월세 매물 (네이버부동산, 직방, 다방, 피터팬)"""
+
+    SOURCE_CHOICES = [
+        ('naver', '네이버부동산'),
+        ('zigbang', '직방'),
+        ('dabang', '다방'),
+        ('peterpan', '피터팬'),
+    ]
+    ROOM_TYPE_CHOICES = [
+        ('oneroom', '원룸'),
+        ('tworoom', '투룸+'),
+        ('officetel', '오피스텔'),
+        ('villa', '빌라/다세대'),
+        ('apt', '아파트'),
+    ]
+    TRADE_TYPE_CHOICES = [
+        ('jeonse', '전세'),
+        ('monthly', '월세'),
+    ]
+
+    code = models.CharField(max_length=100, unique=True, db_index=True)
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, db_index=True)
+    title = models.CharField(max_length=255)
+    room_type = models.CharField(max_length=20, choices=ROOM_TYPE_CHOICES, db_index=True)
+    trade_type = models.CharField(max_length=20, choices=TRADE_TYPE_CHOICES, db_index=True)
+
+    address = models.CharField(max_length=255)
+    location = gis_models.PointField(null=True, blank=True)
+    district = models.CharField(max_length=100, db_index=True)
+    region = models.CharField(max_length=100, db_index=True)
+
+    deposit = models.BigIntegerField(validators=[MinValueValidator(0)], help_text="보증금 (원)")
+    monthly_rent = models.BigIntegerField(validators=[MinValueValidator(0)], default=0, help_text="월세 (원)")
+    maintenance_fee = models.IntegerField(validators=[MinValueValidator(0)], default=0, help_text="관리비 (원)")
+
+    exclusive_area = models.DecimalField(max_digits=6, decimal_places=2, validators=[MinValueValidator(0)])
+    floor = models.CharField(max_length=20, blank=True)
+    building_year = models.IntegerField(null=True, blank=True)
+
+    description = models.TextField(blank=True)
+    detail_url = models.URLField(blank=True)
+    image_url = models.URLField(blank=True)
+
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['source', 'is_active']),
+            models.Index(fields=['room_type', 'trade_type', 'is_active']),
+            models.Index(fields=['district', 'is_active']),
+            models.Index(fields=['region', 'is_active']),
+            models.Index(fields=['deposit']),
+        ]
+
+    def __str__(self):
+        return f"[{self.get_source_display()}] {self.title}"

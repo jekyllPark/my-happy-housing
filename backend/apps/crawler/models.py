@@ -6,6 +6,11 @@ class CrawlLog(models.Model):
         ('myhome', 'MyHome'),
         ('lh', 'LH'),
         ('applyhome', 'ApplyHome'),
+        ('sh', 'SH공사'),
+        ('naver_rental', '네이버부동산'),
+        ('zigbang', '직방'),
+        ('dabang', '다방'),
+        ('peterpan', '피터팬'),
     ]
 
     STATUS_CHOICES = [

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import HousingComplex, Recruitment, SupplyUnit, Eligibility
+from .models import HousingComplex, Recruitment, SupplyUnit, Eligibility, RentalListing
 
 
 class EligibilitySerializer(serializers.ModelSerializer):
@@ -242,7 +242,27 @@ class HousingComplexListSerializer(serializers.ModelSerializer):
         return r.announcement_url if r else None
 
 
+class RentalListingSerializer(serializers.ModelSerializer):
+    source_display = serializers.CharField(source='get_source_display', read_only=True)
+    room_type_display = serializers.CharField(source='get_room_type_display', read_only=True)
+    trade_type_display = serializers.CharField(source='get_trade_type_display', read_only=True)
+
+    class Meta:
+        model = RentalListing
+        fields = [
+            'id', 'code', 'source', 'source_display',
+            'title', 'room_type', 'room_type_display',
+            'trade_type', 'trade_type_display',
+            'address', 'location', 'district', 'region',
+            'deposit', 'monthly_rent', 'maintenance_fee',
+            'exclusive_area', 'floor', 'building_year',
+            'description', 'detail_url', 'image_url',
+            'is_active', 'created_at',
+        ]
+
+
 class StaticDataSerializer(serializers.Serializer):
     categories = serializers.JSONField()
     deposit_table = serializers.JSONField()
     eligibility = serializers.JSONField()
+    loans = serializers.JSONField()

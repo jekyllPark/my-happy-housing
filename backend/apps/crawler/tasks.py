@@ -34,6 +34,26 @@ def crawl_daily(self, source='myhome'):
             from .spiders.applyhome_spider import ApplyHomeSpider
             spider = ApplyHomeSpider()
             result = spider.crawl()
+        elif source == 'sh':
+            from .spiders.sh_spider import SHSpider
+            spider = SHSpider()
+            result = spider.crawl()
+        elif source == 'naver_rental':
+            from .spiders.naver_rental_spider import NaverRentalSpider
+            spider = NaverRentalSpider()
+            result = spider.crawl()
+        elif source == 'zigbang':
+            from .spiders.zigbang_spider import ZigbangSpider
+            spider = ZigbangSpider()
+            result = spider.crawl()
+        elif source == 'dabang':
+            from .spiders.dabang_spider import DabangSpider
+            spider = DabangSpider()
+            result = spider.crawl()
+        elif source == 'peterpan':
+            from .spiders.peterpan_spider import PeterpanSpider
+            spider = PeterpanSpider()
+            result = spider.crawl()
         else:
             raise ValueError(f'Unknown source: {source}')
 
@@ -80,7 +100,7 @@ def crawl_weekly_update(self):
     Weekly crawl task - runs on Sunday at 5 AM
     Crawls all sources for comprehensive update
     """
-    sources = ['myhome', 'lh', 'applyhome']
+    sources = ['myhome', 'lh', 'applyhome', 'sh', 'naver_rental', 'zigbang', 'dabang', 'peterpan']
     results = []
 
     for source in sources:
