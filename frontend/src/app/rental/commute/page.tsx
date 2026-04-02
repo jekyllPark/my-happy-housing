@@ -38,10 +38,13 @@ function RentalCard({ item }: { item: any }) {
   };
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow">
-      <div className="flex items-center gap-2 mb-2">
-        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${sourceColors[item.source] || 'bg-gray-100'}`}>{item.source_display}</span>
-        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${item.trade_type === 'jeonse' ? 'bg-indigo-100 text-indigo-700' : 'bg-rose-100 text-rose-700'}`}>{item.trade_type_display}</span>
-        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">{item.room_type_display}</span>
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${sourceColors[item.source] || 'bg-gray-100'}`}>{item.source_display}</span>
+          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${item.trade_type === 'jeonse' ? 'bg-indigo-100 text-indigo-700' : 'bg-rose-100 text-rose-700'}`}>{item.trade_type_display}</span>
+          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">{item.room_type_display}</span>
+        </div>
+        {item.detail_url && <a href={item.detail_url} target="_blank" rel="noopener noreferrer" className="text-xs text-purple-600 hover:underline whitespace-nowrap">원본 보기</a>}
       </div>
       <h3 className="font-semibold text-gray-900 mb-1 text-sm">{item.title}</h3>
       <p className="text-xs text-gray-500 mb-2">{item.address}</p>
