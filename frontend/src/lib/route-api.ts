@@ -21,3 +21,40 @@ export async function searchRoute(
 
   return response.data;
 }
+
+export interface ReachableBusStop {
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+  distance_m: number;
+  estimated_minutes: number;
+  category: string;
+  place_id: string;
+}
+
+export interface BusReachableResponse {
+  success: boolean;
+  destination: { lat: number; lng: number };
+  max_minutes: number;
+  search_radius_m: number;
+  avg_bus_speed_kmh: number;
+  overhead_minutes: number;
+  stops: ReachableBusStop[];
+  total: number;
+}
+
+export async function findReachableBusStops(
+  lat: number,
+  lng: number,
+  minutes: number
+): Promise<BusReachableResponse> {
+  const params = new URLSearchParams({
+    lat: lat.toString(),
+    lng: lng.toString(),
+    minutes: minutes.toString(),
+  });
+  return apiClient.get<BusReachableResponse>(
+    `/api/route/bus-reachable/?${params.toString()}`
+  );
+}

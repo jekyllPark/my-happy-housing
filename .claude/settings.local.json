@@ -18,7 +18,22 @@
       "Bash(git status:*)",
       "Bash(git add:*)",
       "Bash(git rm:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(xargs -I {} sh -c 'echo \"===== {} =====\" && head -20 {}')",
+      "Bash(find:*)",
+      "Bash(npx tsc:*)",
+      "Bash(python manage.py loaddata fixtures/sh_housing_data.json)",
+      "WebSearch",
+      "WebFetch(domain:www.i-sh.co.kr)",
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
+      "Bash(python -c \"from apps.route.services import BusReachableService, GeolocationService, is_in_seoul_metro, haversine_m; print\\('OK'\\); print\\('radius for 30min:', BusReachableService.radius_for_minutes\\(30\\)\\); print\\('radius for 60min:', BusReachableService.radius_for_minutes\\(60\\)\\); print\\('est 5km:', BusReachableService.estimate_minutes\\(5000\\)\\)\")",
+      "Bash(docker exec my-happy-housing-backend-1 *)",
+      "Bash(docker exec *)"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "mcp-atlassian"
+  ]
 }

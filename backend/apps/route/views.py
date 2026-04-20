@@ -6,7 +6,12 @@ from django.contrib.gis.measure import D
 
 from apps.housing.models import HousingComplex
 from apps.housing.serializers import HousingComplexListSerializer
-from .services import KakaoRouteService, GeolocationService
+from .services import (
+    BusReachableService,
+    GeolocationService,
+    KakaoRouteService,
+    is_in_seoul_metro,
+)
 
 import logging
 
@@ -196,6 +201,63 @@ class CommutingDistanceView(views.APIView):
                 },
             }
         )
+
+
+class BusReachableView(views.APIView):
+    """
+    Given a destination stop and a max-minutes budget (30~60), return nearby
+    bus stops that could reach the destination within that budget using a
+    straight-line + avg-bus-speed approximation.
+    """
+
+    def get(self, request):
+        dest_lat = request.query_params.get('lat')
+        dest_lng = request.query_params.get('lng')
+        minutes = request.query_params.get('minutes', 45)
+
+        if dest_lat is None or dest_lng is None:
+            return Response(
+                {'error': 'lat, lng are required'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            dest_lat = float(dest_lat)
+            dest_lng = float(dest_lng)
+            minutes = int(minutes)
+        except (TypeError, ValueError):
+            return Response(
+                {'error': 'Invalid numeric parameters'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if minutes < 30 or minutes > 60:
+            return Response(
+                {'error': 'minutes must be between 30 and 60'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not is_in_seoul_metro(dest_lat, dest_lng):
+            return Response(
+                {'success': False, 'error': '현재는 서울·수도권 지역만 지원합니다.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        kakao_api_key = settings.KAKAO_API_KEY
+        if not kakao_api_key:
+            return Response(
+                {'error': 'Kakao API key not configured'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        geo_service = GeolocationService(kakao_api_key)
+        service = BusReachableService(geo_service)
+        result = service.find_reachable_stops(dest_lat, dest_lng, minutes)
+
+        if not result.get('success'):
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(result)
 
 
 class AddressSearchView(views.APIView):

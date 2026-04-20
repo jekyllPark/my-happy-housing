@@ -34,6 +34,12 @@ export function Header() {
               통근시간 검색
             </Link>
             <Link
+              href="/bus-reachable"
+              className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
+            >
+              버스 도달검색
+            </Link>
+            <Link
               href="/region"
               className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
             >
@@ -100,6 +106,13 @@ export function Header() {
               onClick={() => setIsOpen(false)}
             >
               통근시간 검색
+            </Link>
+            <Link
+              href="/bus-reachable"
+              className="block text-gray-600 hover:text-gray-900 font-medium py-2"
+              onClick={() => setIsOpen(false)}
+            >
+              버스 도달검색
             </Link>
             <Link
               href="/region"
